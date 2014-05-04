@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Martin Heuschober" />
+  <meta name="author" content="CC-BY-NC-SA 4.0" />
+  <title>Thoroughly Testing in Haskell</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="reveal.js/css/reveal.min.css"/>
+    <style type="text/css">code{white-space: pre;}</style>
+    <style type="text/css">
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+    </style>
+    <link rel="stylesheet" href="reveal.js/css/theme/simple.css" id="theme">
+  <link rel="stylesheet" media="print" href="reveal.js/css/print/pdf.css" />
+  <!--[if lt IE 9]>
+  <script src="reveal.js/lib/js/html5shiv.js"></script>
+  <![endif]-->
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section>
+    <h1 class="title">Thoroughly Testing in Haskell</h1>
+    <h2 class="author">Martin Heuschober</h2>
+    <h2 class="author"><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/">CC-BY-NC-SA 4.0</a></h2>
+    <h3 class="date">9. April 2014</h3>
+</section>
+
+<section class="slide level2">
+
+<link rel="stylesheet" href="highlight.js/styles/solarized_light.css">
+<script src="highlight.js/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</section>
+<section><section id="test-driven-development" class="titleslide slide level1"><h1>Test-Driven Development</h1></section><section id="intro" class="slide level2">
+<h1>Intro</h1>
+<p>Test driven development ist das Prinzip Software so zu entwickeln, dass man erst die Tests zu den Funktionen schreibt und erst dann dieselben implementiert.</p>
+<p>Dies Sichert einerseits die Qualität und Funktionalität des Programms andererseits, macht es Software wartbarer und spart erhebliche Zeit beim Debuggen.</p>
+</section><section class="slide level2">
+
+<p>Weiters passiert bei dieser Art zu entwickeln ein zweiter und meiner Meinung nach wichtigerer Schritt, man beginnt in Tests zu denken bzw. schreibt auch seine Funktionen so, dass sie leichter testbar sind.</p>
+<p>Dadurch werden Funktionsblöcke oft kürzer und eine Funktion die vorher ein zeilenlanges ungetüm war wird in mehrere Teilroutinen aufgedröselt.</p>
+</section><section id="testkultur-in-haskell" class="slide level2">
+<h1>Testkultur in Haskell</h1>
+<p>Wenn man sich das Haskellland ansieht merkt man, dass die Priorität des Testens schon von erster Stunde an mitgeplant war. So liefert die Compilerinfrastruktur Tools wie <code>hpc</code> mit das Test-Coverage testet. Und gerade der Compiler selbst, hat höchstwahrscheinlich hunderte Tests, die sicherstellen dass neue Änderungen keine altbekannten Fehler zum Leben erwecken.</p>
+</section><section class="slide level2">
+
+<p>Weiters hat sich durch das akademische Umfeld in dem sich Haskell entwickelt hat auch eine Kultur des Beweisens verbreitet, so ist es nicht unüblich Teile des Programms, von Hand oder computergestützt zu Beweisen. Ein Beispiel dafür wäre der Window Manager <code>xmonad</code>, dessen Basis in der Programmiersprache <code>coq</code> bewiesen ist.</p>
+</section><section class="slide level2">
+
+<p>Eine weitere Besonderheit im Haskellland ist das Property based Testing.</p>
+<p>Erfunden wurde das ganze während eines ICFP Contests - die Autoren brauchten während ihrere Teilnahme ein ausgefeilteres Testing-Tool und haben zwar glaube ich den Wettkampf nicht gewonnen, aber relativ zügig danach ein Paper veröffentlicht in dem sie den Urvater <code>QuickCheck</code> präsentieren.</p>
+</section><section class="slide level2">
+
+<p>Die erste Idee ist es, dass in vielen Problemstellungen das Schreiben von Tests recht mühsam ist und gerade in einer stark&amp;statisch typisierten Sprache, das Input für diese Tests doch von einem Computer generierbar sein sollte.</p>
+<p>Die zweite Idee ist, wenn in einer langen Liste ein Test-Error auftaucht, gibt es meistens eine kürzere Liste in der der selbe Fehler auftaucht.</p>
+<p>Ausgehend von diesem Paper finden sich mittlerweile zahlreiche Implementierungen, heutzutage auch in dynamischen Programmiersprachen wie Erlang oder Clojure.</p>
+</section></section>
+<section><section id="tasty" class="titleslide slide level1"><h1>Tasty</h1></section><section id="hello-my-name-is-tasty" class="slide level2">
+<h1>Hello my name is <em>Tasty</em></h1>
+<ul>
+<li><strong>Autor</strong>: Roman Cheplyaka</li>
+<li><strong>Features</strong>:
+<ul>
+<li>Ist neben <code>HSpec</code> eines der populären Testing-Frameworks</li>
+<li>Integriert HUnit, Small- und QuickCheck, sowie Golden HUnit Tests die FileIO benutzen</li>
+<li>Roman Cheplyaka ist auch Autor des Pakets <code>SmallCheck</code></li>
+</ul></li>
+</ul>
+</section><section id="installation" class="slide level2">
+<h1>Installation</h1>
+<pre class="sourceCode bash"><code class="sourceCode bash">$<span class="kw">&gt;</span> <span class="kw">cabal</span> install tasty
+$<span class="kw">&gt;</span> <span class="kw">cabal</span> install tasty-quickcheck
+$<span class="kw">&gt;</span> <span class="kw">cabal</span> install tasty-smallcheck
+$<span class="kw">&gt;</span> <span class="kw">cabal</span> install tasty-hunit</code></pre>
+<p>und los kanns gehen.</p>
+</section><section id="fruitshop.hs" class="slide level2">
+<h1>FruitShop.hs</h1>
+<p>Als kleines Beispiel habe ich mir überlegt wäre ein stark vereinfachter Shop in dem man Obst einkaufen kann, inspiration gab mir die Erlang meetup Guppe.</p>
+</section><section class="slide level2">
+
+<p>Ich persönlich beginne gerne mit den Datentypen.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">module</span> <span class="dt">Data</span> <span class="kw">where</span>
+
+<span class="kw">import </span><span class="dt">Data.Word</span>
+<span class="kw">import </span><span class="dt">Test.SmallCheck.Series</span>
+
+<span class="kw">data</span> <span class="dt">Fruit</span> <span class="fu">=</span> <span class="dt">Apple</span>    <span class="fu">|</span> <span class="dt">Blackberry</span> <span class="fu">|</span> <span class="dt">Coconut</span>    <span class="fu">|</span> <span class="dt">Date</span>
+           <span class="fu">|</span> <span class="dt">Eggplant</span> <span class="fu">|</span> <span class="dt">F</span>          <span class="fu">|</span> <span class="dt">Grapefruit</span> <span class="fu">|</span> <span class="dt">H</span>
+           <span class="fu">|</span> <span class="dt">I</span>        <span class="fu">|</span> <span class="dt">J</span>          <span class="fu">|</span> <span class="dt">Kiwi</span>       <span class="fu">|</span> <span class="dt">Lychee</span>
+           <span class="fu">|</span> <span class="dt">Mango</span>    <span class="fu">|</span> <span class="dt">N</span>          <span class="fu">|</span> <span class="dt">Orange</span>     <span class="fu">|</span> <span class="dt">Pear</span>
+           <span class="fu">|</span> <span class="dt">Quitte</span>   <span class="fu">|</span> <span class="dt">Raspberry</span>  <span class="fu">|</span> <span class="dt">Strawberry</span> <span class="fu">|</span> <span class="dt">Tomato</span>
+           <span class="fu">|</span> <span class="dt">U</span>        <span class="fu">|</span> <span class="dt">V</span>          <span class="fu">|</span> <span class="dt">W</span>          <span class="fu">|</span> <span class="dt">X</span>
+           <span class="fu">|</span> <span class="dt">Y</span>        <span class="fu">|</span> <span class="dt">Z</span>
+           <span class="kw">deriving</span> (<span class="dt">Ord</span>, <span class="dt">Eq</span>, <span class="dt">Enum</span>, <span class="dt">Show</span>)
+
+<span class="kw">type</span> <span class="dt">ShoppingList</span> <span class="fu">=</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)]
+<span class="kw">type</span> <span class="dt">Price</span> <span class="fu">=</span> <span class="dt">Double</span>
+<span class="kw">type</span> <span class="dt">PriceList</span> <span class="fu">=</span> [(<span class="dt">Fruit</span>,<span class="dt">Price</span>)]</code></pre>
+</section><section class="slide level2">
+
+<p>Und einem ungefähren Plan, wie meine Funkitonen heißen sollen und welche Signatur sie haben.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">module</span> <span class="dt">FruitShop</span> <span class="kw">where</span>
+
+<span class="kw">import </span><span class="dt">Data</span>
+<span class="kw">import </span><span class="dt">Data.Word</span>
+
+<span class="ot">priceList ::</span> <span class="dt">PriceList</span>
+priceList <span class="fu">=</span> zip [<span class="dt">Apple</span> <span class="fu">..</span> <span class="dt">Z</span>] (cycle [<span class="dv">1</span>,<span class="dv">2</span>])
+
+<span class="ot">addFruit ::</span> <span class="dt">Fruit</span> <span class="ot">-&gt;</span> <span class="dt">ShoppingList</span> <span class="ot">-&gt;</span> <span class="dt">ShoppingList</span>
+addFruit <span class="fu">=</span> undefined
+
+<span class="ot">remFruit ::</span> <span class="dt">Fruit</span> <span class="ot">-&gt;</span> <span class="dt">ShoppingList</span> <span class="ot">-&gt;</span> <span class="dt">ShoppingList</span>
+remFruit <span class="fu">=</span> undefined</code></pre>
+</section><section class="slide level2">
+
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">emptyShoppingList ::</span> <span class="dt">ShoppingList</span>
+emptyShoppingList <span class="fu">=</span> []
+
+<span class="ot">size ::</span> <span class="dt">ShoppingList</span> <span class="ot">-&gt;</span> <span class="dt">Word8</span>
+size <span class="fu">=</span> undefined
+
+<span class="ot">totalPrice ::</span> <span class="dt">ShoppingList</span> <span class="ot">-&gt;</span> <span class="dt">PriceList</span> <span class="ot">-&gt;</span> <span class="dt">Price</span>
+totalPrice <span class="fu">=</span> undefined
+
+<span class="ot">(+&gt;) ::</span> (<span class="dt">Fruit</span>,<span class="dt">Word8</span>) <span class="ot">-&gt;</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)] <span class="ot">-&gt;</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)]
+(<span class="fu">+&gt;</span>) <span class="fu">=</span> undefined
+
+<span class="ot">(&lt;+&gt;)::</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)] <span class="ot">-&gt;</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)] <span class="ot">-&gt;</span> [(<span class="dt">Fruit</span>,<span class="dt">Word8</span>)]
+(<span class="fu">&lt;+&gt;</span>) <span class="fu">=</span> undefined</code></pre>
+</section><section id="tests.hs" class="slide level2">
+<h1>Tests.hs</h1>
+<p>So und nun zu den Tests.</p>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">module</span> <span class="dt">Test</span> <span class="kw">where</span>
+
+<span class="kw">import </span><span class="dt">Test.Tasty</span>
+<span class="kw">import </span><span class="dt">Test.Tasty.SmallCheck</span> <span class="kw">as</span> <span class="dt">SC</span>
+<span class="kw">import </span><span class="dt">Test.Tasty.HUnit</span>
+<span class="kw">import </span><span class="dt">HUnit.Utils</span>
+
+<span class="kw">import </span><span class="dt">FruitShop</span>
+<span class="kw">import </span><span class="dt">Data</span>
+<span class="kw">import </span><span class="dt">Data.List</span> (permutations)
+
+<span class="ot">main ::</span> <span class="dt">IO</span> ()
+main <span class="fu">=</span> defaultMain tests
+
+<span class="ot">tests ::</span> <span class="dt">TestTree</span>
+tests <span class="fu">=</span> testGroup <span class="st">&quot;Tests&quot;</span> [scProps, unitTests, errorTests]</code></pre>
+</section><section id="unit-tests" class="slide level2">
+<h1>Unit Tests</h1>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">unitTests ::</span> <span class="dt">TestTree</span>
+unitTests <span class="fu">=</span> testGroup <span class="st">&quot;Unit tests&quot;</span>
+  [ testCase <span class="st">&quot;apple +&gt; empty = [(Apple,1)]&quot;</span> <span class="fu">$</span>
+      (<span class="dt">Apple</span>,<span class="dv">1</span>) <span class="fu">+&gt;</span> emptyShoppingList <span class="fu">@?=</span> [(<span class="dt">Apple</span>,<span class="dv">1</span>)]
+  <span class="co">--hunit</span>
+  ]</code></pre>
+<p>dabei ist <code>(@?=)</code> als <code>assertEquals</code> zu lesen.</p>
+</section><section id="error-tests" class="slide level2">
+<h1>Error Tests</h1>
+<p>Für die Error Tests muss man ein bischen basteln, aber mit Stackoverflow und ein wenig Copy&amp;Paste Code aus einem Bestehenden Hackage-Paket baut man sich <code>(@!=)</code> mein Analogon zu <code>(@?=)</code> das assertRaises bedeutet.</p>
+<p><em>Und ja ich weiß in vielen Programmiersprachen ist <code>!=</code> als</em> ungleich <em>zu lesen, das ist in Haskell aber <code>/=</code></em></p>
+</section><section class="slide level2">
+
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">errorTests ::</span> <span class="dt">TestTree</span>
+errorTests <span class="fu">=</span> testGroup <span class="st">&quot;Unit tests for Exceptions&quot;</span>
+  [ testCase <span class="st">&quot;test error&quot;</span> <span class="fu">$</span>
+      <span class="st">&quot;exception&quot;</span> <span class="fu">@!=</span> (<span class="dv">1</span><span class="ot"> ::</span> <span class="dt">Int</span>)
+  <span class="co">--error</span>
+  ]</code></pre>
+</section><section id="smallcheck-tests" class="slide level2">
+<h1>SmallCheck Tests</h1>
+<ul>
+<li>Setzt im Gegensatz zu QuickCheck auf weniger, dafür gezielte Tests</li>
+<li>vereinfacht es Zufallsgeneratoren für eigene Datentypen zu schreiben, soll heißen mit entsprechenden Language-Extension wird das sogar automatisiert erledigt.</li>
+</ul>
+</section><section id="wie-sehen-nun-diese-vereinfachten-generatoren-aus" class="slide level2">
+<h1>Wie sehen nun diese „vereinfachten” Generatoren aus?</h1>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE FlexibleInstances #-}</span>
+<span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span>
+
+<span class="kw">instance</span> <span class="dt">Serial</span> <span class="dt">IO</span> <span class="dt">Fruit</span> <span class="kw">where</span>
+  series <span class="fu">=</span> generate <span class="fu">$</span> \d <span class="ot">-&gt;</span> map fromDepthtoFruit [<span class="dv">0</span><span class="fu">..</span>d]
+         <span class="kw">where</span> fromDepthtoFruit <span class="fu">=</span> toEnum <span class="fu">.</span> id
+
+<span class="kw">instance</span> <span class="dt">Serial</span> <span class="dt">IO</span> <span class="dt">Word8</span> <span class="kw">where</span>
+  series <span class="fu">=</span> generate <span class="fu">$</span> \d <span class="ot">-&gt;</span> map fromIntegral [<span class="dv">0</span><span class="fu">..</span>d]</code></pre>
+</section><section class="slide level2">
+
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">scProps ::</span> <span class="dt">TestTree</span>
+scProps <span class="fu">=</span> testGroup <span class="st">&quot;(checked by SmallCheck)&quot;</span>
+  [ SC.testProperty <span class="st">&quot;length (remFruit shoplst) &lt;= length shoplst&quot;</span> <span class="fu">$</span>
+      \shoplst frt <span class="ot">-&gt;</span> length (remFruit frt shoplst) <span class="fu">&lt;=</span> length shoplst
+
+  , SC.testProperty <span class="st">&quot;size (remFruit shoplst) &lt;= length shoplst&quot;</span> <span class="fu">$</span>
+      \shoplst frt <span class="ot">-&gt;</span> size (remFruit frt shoplst) <span class="fu">&lt;=</span> size shoplst
+
+  , SC.testProperty <span class="st">&quot;add then rem == id&quot;</span> <span class="fu">$</span> \lst frt <span class="ot">-&gt;</span>
+      (remFruit frt <span class="fu">.</span> addFruit frt) lst <span class="fu">==</span> id lst
+
+  , SC.testProperty <span class="st">&quot;size (lst1 &lt;+&gt; lst2) == size lst1 + size lst2&quot;</span> <span class="fu">$</span>
+      \lst1 lst2 <span class="ot">-&gt;</span> size (lst1 <span class="fu">&lt;+&gt;</span> lst2) <span class="fu">==</span> size lst1 <span class="fu">+</span> size lst2
+
+  , SC.testProperty <span class="st">&quot;commutivity of summation (Int)&quot;</span> <span class="fu">$</span> \lst <span class="ot">-&gt;</span>
+      all (<span class="fu">==</span> sum (<span class="ot">lst::</span>[<span class="dt">Int</span>])) (map sum (permutations lst))
+
+  , SC.testProperty <span class="st">&quot;commutivity of summation (Double)&quot;</span> <span class="fu">$</span> \lst <span class="ot">-&gt;</span>
+      all (<span class="fu">==</span> sum (<span class="ot">lst::</span>[<span class="dt">Double</span>])) (map sum (permutations lst))
+
+  <span class="co">--smallcheck</span>
+  ]</code></pre>
+</section><section id="quickcheck-tests" class="slide level2">
+<h1>QuickCheck Tests</h1>
+<p>Lasse ich aus weil sie ganz analog zu SmallCheck funktionieren</p>
+</section><section id="output" class="slide level2">
+<h1>Output</h1>
+<pre>
+Tests
+  Properties
+    (checked by SmallCheck)
+      length (remFruit shoplst) <= length shoplst:   <span style="color:red;">FAIL</span>
+        <span style="color:red;">Exception: Prelude.undefined</span>
+      size (remFruit shoplst) <= length shoplst:     <span style="color:red;">FAIL</span>
+        <span style="color:red;">Exception: Prelude.undefined</span>
+      add then rem == id:                            <span style="color:red;">FAIL</span>
+        <span style="color:red;">Exception: Prelude.undefined</span>
+      size (lst1 <+> lst2) == size lst1 + size lst2: <span style="color:red;">FAIL</span>
+        <span style="color:red;">Exception: Prelude.undefined</span>
+      commutivity of summation (Int):               <span style="color:green">OK</span>
+        1333 tests completed
+      commutivity of summation (Double):            <span style="color:green">OK</span>
+        4815 tests completed
+  Unit tests
+    apple +> empty = [(Apple,1)]:                    <span style="color:red;">FAIL</span>
+        <span style="color:red;">Exception: Prelude.undefined</span>
+  Unit tests for Exceptions
+    test error:                                      <span style="color:red;">FAIL</span>
+      <span style="color:red;">Received no exception, but was expecting exception: exception</span>
+
+6 out of 8 tests failed
+</pre>
+
+
+</section></section>
+<section><section id="criterion" class="titleslide slide level1"><h1>Criterion</h1></section><section id="intro-1" class="slide level2">
+<h1>Intro</h1>
+<p>Criterion ist ein Benchmarking tool, Autor: Bryan O'Sullivan und ist meiner Meinung nach unerreicht!</p>
+</section><section id="installation-usage" class="slide level2">
+<h1>Installation &amp; Usage</h1>
+<p>Installation funktioniert wie immer mit dem Paketmanager <strong>cabal</strong></p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$<span class="kw">&gt;</span> <span class="kw">cabal</span> update
+$<span class="kw">&gt;</span> <span class="kw">cabal</span> install criterion</code></pre>
+</section><section id="reverseinteger.hs" class="slide level2">
+<h1>ReverseInteger.hs</h1>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE BangPatterns #-}</span>
+
+<span class="kw">module</span> <span class="dt">ReverseInteger</span> <span class="kw">where</span>
+
+<span class="ot">epsilon_fast ::</span> <span class="dt">Int</span><span class="ot">-&gt;</span> <span class="dt">Int</span>
+epsilon_fast n <span class="fu">=</span> aux n <span class="dv">0</span>
+               <span class="kw">where</span><span class="ot"> aux ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+                     aux <span class="dv">0</span> <span class="fu">!</span>y <span class="fu">=</span> y
+                     aux x <span class="fu">!</span>y <span class="fu">=</span> <span class="kw">let</span> (x&#39;,y&#39;) <span class="fu">=</span> x <span class="ot">`quotRem`</span> <span class="dv">10</span>
+                                 <span class="kw">in</span> aux x&#39; (<span class="dv">10</span><span class="fu">*</span>y<span class="fu">+</span>y&#39;)
+
+<span class="ot">epsilon_rInt ::</span> <span class="dt">Int</span><span class="ot">-&gt;</span> <span class="dt">Int</span>
+epsilon_rInt n <span class="fu">=</span> aux (n,<span class="dv">0</span>)
+               <span class="kw">where</span> aux (<span class="dv">0</span>,y) <span class="fu">=</span> y
+                     aux (x,y) <span class="fu">=</span> <span class="kw">let</span> (x&#39;,y&#39;) <span class="fu">=</span> x <span class="ot">`quotRem`</span> <span class="dv">10</span>
+                                 <span class="kw">in</span> aux (x&#39;,<span class="dv">10</span><span class="fu">*</span>y<span class="fu">+</span>y&#39;)</code></pre>
+</section><section class="slide level2">
+
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">epsilon_rInt&#39; ::</span> <span class="dt">Int</span><span class="ot">-&gt;</span> <span class="dt">Int</span>
+epsilon_rInt&#39; n <span class="fu">=</span> aux (n,<span class="dv">0</span>)
+                <span class="kw">where</span> aux (<span class="dv">0</span>,y) <span class="fu">=</span> y
+                      aux (x,y) <span class="fu">=</span> <span class="kw">let</span> (x&#39;,y&#39;) <span class="fu">=</span> x <span class="ot">`quotRem`</span> <span class="dv">10</span>
+                                      <span class="fu">!</span>z <span class="fu">=</span> <span class="dv">10</span><span class="fu">*</span>y<span class="fu">+</span>y&#39;
+                                  <span class="kw">in</span> aux (x&#39;,z)
+
+<span class="ot">fRaabe_Int ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+fRaabe_Int x <span class="fu">|</span> x <span class="fu">&lt;</span> <span class="dv">0</span>     <span class="fu">=</span> <span class="dv">0</span> <span class="fu">-</span> (read <span class="fu">.</span> reverse <span class="fu">.</span> tail <span class="fu">.</span> show <span class="fu">$</span> x)
+             <span class="fu">|</span> otherwise <span class="fu">=</span> read <span class="fu">.</span> reverse <span class="fu">.</span> show <span class="fu">$</span> x
+
+<span class="ot">zeta_Int ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>
+zeta_Int x <span class="fu">=</span> (<span class="fu">*</span>) (signum x) <span class="fu">.</span> read <span class="fu">.</span> reverse <span class="fu">.</span> show <span class="fu">.</span> abs  <span class="fu">$</span> x</code></pre>
+</section><section id="benchmarks.hs" class="slide level2">
+<h1>Benchmarks.hs</h1>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">import </span><span class="dt">Criterion.Main</span>
+<span class="kw">import </span><span class="dt">ReverseInteger</span>
+
+<span class="ot">main ::</span> <span class="dt">IO</span> ()
+main <span class="fu">=</span>  defaultMain
+  [bgroup <span class="st">&quot;epsilon_fast&quot;</span> [ bench <span class="st">&quot;fast1&quot;</span> <span class="fu">$</span> whnf epsilon_fast <span class="dv">123456789</span> ,
+                           bench <span class="st">&quot;fast2&quot;</span> <span class="fu">$</span> whnf epsilon_fast <span class="dv">987654321</span> ]
+  ,bgroup <span class="st">&quot;epsilon_rInt&quot;</span> [ bench <span class="st">&quot;rInt1&quot;</span> <span class="fu">$</span> whnf epsilon_rInt <span class="dv">123456789</span> ,
+                           bench <span class="st">&quot;rInt2&quot;</span> <span class="fu">$</span> whnf epsilon_rInt <span class="dv">987654321</span> ]
+  ,bgroup <span class="st">&quot;epsilon_rInt&#39;&quot;</span>[ bench <span class="st">&quot;rInt&#39;1&quot;</span> <span class="fu">$</span> whnf epsilon_rInt&#39; <span class="dv">123456789</span> ,
+                           bench <span class="st">&quot;rInt&#39;2&quot;</span> <span class="fu">$</span> whnf epsilon_rInt&#39; <span class="dv">987654321</span> ]
+  ,bgroup <span class="st">&quot;fRaabe_Int&quot;</span>   [ bench <span class="st">&quot;fRaabe1&quot;</span> <span class="fu">$</span> whnf fRaabe_Int <span class="dv">123456789</span> ,
+                           bench <span class="st">&quot;fRaabe2&quot;</span> <span class="fu">$</span> whnf fRaabe_Int <span class="dv">987654321</span> ]
+  ,bgroup <span class="st">&quot;zeta_Int&quot;</span>     [ bench <span class="st">&quot;zeta1&quot;</span> <span class="fu">$</span> whnf zeta_Int <span class="dv">123456789</span> ,
+                           bench <span class="st">&quot;zeta2&quot;</span> <span class="fu">$</span> whnf zeta_Int <span class="dv">987654321</span> ]]</code></pre>
+</section><section id="usage" class="slide level2">
+<h1>Usage</h1>
+<p>Benutzen kann man das dann mit:</p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$<span class="kw">&gt;</span> <span class="kw">ghc</span> -O2 Benchmark.hs
+$<span class="kw">&gt;</span> <span class="kw">./Benchmark</span> -o Benchmark.html</code></pre>
+<p>Mit <a href="ReverseInteger.html">Output</a></p>
+</section></section>
+<section><section id="profiling" class="titleslide slide level1"><h1>Profiling</h1></section><section id="intro-2" class="slide level2">
+<h1>Intro</h1>
+<p>Profiling ist ebenfalls ein im Compiler eingebautes Feature, da das Nachvollziehen des Codes durch 'lazy evaluation' leider erheblich erschwert wird. Außerdem schafft man es traditionell sehr schnell Space Leaks oder Time Leaks zu schaffen.</p>
+</section><section class="slide level2">
+
+<p>Um nun ein Programm mit profiling informationen zu compilen fügt man in erster Näherung einfach die Option <code>-fprof-auto</code> an.</p>
+<pre class="sourceCode bash"><code class="sourceCode bash">$<span class="kw">&gt;</span> <span class="kw">ghc</span> -O2 --make -prof -fprof-auto -rtsopts -fforce-recomp MyProgram.hs
+$<span class="kw">&gt;</span> <span class="kw">./MyProgram</span> +RTS -hc -K100M
+$<span class="kw">&gt;</span> <span class="kw">hp2ps</span> MyProgram.hp</code></pre>
+</section><section class="slide level2">
+
+<p>und erhält dann ein Heap-Profile</p>
+<figure>
+<img src="Profiling1-1.jpg" title="test" alt="Profile" /><figcaption>Profile</figcaption>
+</figure>
+</section><section id="mehr-dazu" class="slide level2">
+<h1>Mehr dazu</h1>
+<p><a href="http://book.realworldhaskell.org/read/profiling-and-optimization.html">RWH Ch.25 Profiling and tuning for performance</a></p>
+</section></section>
+<section><section id="equational-reasoning" class="titleslide slide level1"><h1>Equational reasoning</h1></section><section id="intro-3" class="slide level2">
+<h1>Intro</h1>
+<p>Equational reasoning ist eigentlich nichts anderes als Beweisen. Zwar manchmal etwas mühsam aber kann durchaus zu schnelleren, aber bestimmt sichereren Programmen führen.</p>
+</section><section id="beispiel-map" class="slide level2">
+<h1>Beispiel: MAP</h1>
+<p><strong>Behauptung:</strong> Die Funktion <code>map: a -&gt; b -&gt; [a] -&gt; [b]</code> die folgende Eigenschaft.</p>
+<blockquote>
+<p>map f . map g == map (f . g)</p>
+</blockquote>
+</section><section id="beweis" class="slide level2">
+<h1>Beweis</h1>
+<p>Induktion über die länge der Liste:</p>
+<p><strong>Basisfall:</strong> <code>[]</code></p>
+<blockquote>
+<p>(map f . map g) [] == [] == map (f . g)</p>
+</blockquote>
+</section><section class="slide level2">
+
+Angenommen wir wissen die Eigenschaft gilt für eine Liste von Länge (n-1), dann zeigen wir das gilt für die ganze Liste.
+<pre>
+(map f . map g) (x:xs) == map f ( map g (x:xs))
+                       == map f ((g x:map g xs))
+                       == (f (g x):map f (map g xs))
+                       == (f.g) x:map f (map g xs)
+                       == (f.g) x:map (f . g) xs)
+                       == map (f . g) (x:xs)
+</pre>
+
+</section><section id="beispiel" class="slide level2">
+<h1>Beispiel</h1>
+<pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">twice ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>]
+twice <span class="fu">=</span> map (<span class="fu">*</span><span class="dv">2</span>)
+
+<span class="ot">thrice ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>]
+thrice <span class="fu">=</span> map (<span class="fu">*</span><span class="dv">3</span>)
+
+(twice <span class="fu">.</span> thrice) <span class="fu">==</span> map (<span class="fu">*</span><span class="dv">2</span>) <span class="fu">.</span> map (<span class="fu">*</span><span class="dv">3</span>)
+                 <span class="fu">==</span> map ((<span class="fu">*</span><span class="dv">2</span>)<span class="fu">.</span>(<span class="fu">*</span><span class="dv">3</span>)) <span class="fu">==</span> map (<span class="fu">*</span><span class="dv">6</span>)</code></pre>
+</section></section>
+<section><section id="referenzen" class="titleslide slide level1"><h1>Referenzen</h1></section><section id="tasty-1" class="slide level2">
+<h1>Tasty</h1>
+<ul>
+<li><a href="http://hackage.haskell.org/package/tasty">hackage</a></li>
+<li><a href="http://documentup.com/feuerbach/tasty">Introduction</a></li>
+<li><a href="http://">SmallCheck vs. QuickCheck</a></li>
+</ul>
+</section><section id="criterion-1" class="slide level2">
+<h1>Criterion</h1>
+<ul>
+<li><a href="http://www.serpentine.com/blog/2009/09/29/criterion-a-new-benchmarking-library-for-haskell/">Bryan O'Sullivan's blog</a></li>
+<li><a href="http://hackage.haskell.org/package/criterion">hackage</a></li>
+</ul>
+</section><section id="profiling-1" class="slide level2">
+<h1>Profiling</h1>
+<ul>
+<li><a href="http://stackoverflow.com/questions/3276240/tools-for-analyzing-performance-of-a-haskell-program/3276557#3276557">Stackoverflow Antwort von Don Stewart</a></li>
+</ul>
+</section><section id="equational-reasoning-1" class="slide level2">
+<h1>Equational Reasoning</h1>
+<ul>
+<li>Pearls of Functional Algorithm Design - R. Bird (supportyourlocalbookstore)</li>
+<li><a href="http://www.haskellforall.com/2014/01/stream-fusion-for-pipes.html">Stream Fusion for Pipes - G.Gonzalez</a>(blog)</li>
+<li><a href="http://www.haskellforall.com/2013/12/equational-reasoning.html">Equational Reasoning - G.Gonzalez</a>(blog)</li>
+</ul>
+</section></section>
+    </div>
+  </div>
+
+  <script src="reveal.js/lib/js/head.min.js"></script>
+  <script src="reveal.js/js/reveal.min.js"></script>
+
+  <script>
+
+      // Full list of configuration options available here:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        theme: 'solarized', // available themes are in /css/theme
+        transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+        // Optional libraries used to extend on reveal.js
+        dependencies: [
+          { src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } },
+//          { src: 'reveal.js/plugin/search/search.js', async: true, condition: function() { return !!document.body.classList; }, }
+//          { src: 'reveal.js/plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+]});
+    </script>
+  </body>
+</html>
